@@ -48,6 +48,7 @@ class Game:
         # rotation to the original
         self.__board = np.rot90(board_to_left, direction)
         self._maybe_new_entry()
+        return int(self.board.sum()), self.end
 
     def __str__(self):
         board = "State:"

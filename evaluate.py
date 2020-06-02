@@ -6,6 +6,7 @@ def single_run(size, score_to_win, AgentClass, **kwargs):
     game = Game(size, score_to_win)
     agent = AgentClass(game, display=Display(), **kwargs)
     agent.play(verbose=True)
+    agent.sess.close()
     return game.score
 
 
@@ -16,7 +17,7 @@ if __name__ == '__main__':
 
     '''====================
     Use your own agent here.'''
-    from game2048.agents import ExpectiMaxAgent as TestAgent
+    from game2048.agents import DCNNAgent as TestAgent
     '''===================='''
 
     scores = []
