@@ -229,10 +229,126 @@ class CNNAgent(Agent):
         return direction
 
 class DCNNAgent(Agent):
+    
+    def Board8(self, image):
+        tempB = np.zeros([4, 4])
+        for i in range(16):#1024 -> 2^10 -> 10
+            t_num = 0
+            if image[i//4][i%4] != 0:
+                t_num = int(math.log2(image[i//4][i%4]))
+            tempB[i//4][i%4] = t_num
+        g0 = tempB      
+        g1 = g0[::-1,:] 
+        g2 = g0[:,::-1] 
+        g3 = g2[::-1,:] 
+        r0 = g0.swapaxes(0,1) 
+        r1 = r0[::-1,:] 
+        r2 = r0[:,::-1]
+        r3 = r2[::-1,:]
 
+        inputB = np.zeros([8, 4, 4, 16])
+        gcount = 0
+        for g in [g0,r2,g3,r1,g2,r0,g1,r3]:
+            for i in range(16):
+                inputB[gcount][i//4][i%4][int(g[i//4][i%4])] = 1
+            gcount += 1
+        P = np.zeros([4], dtype=np.float32)
+        Pcount = np.zeros([4])
+
+        prev = self.sess.run(self.p, feed_dict={self.x_image:inputB})
+
+        self.B0(prev[0][:], P, Pcount)
+        self.B1(prev[1][:], P, Pcount)
+        self.B2(prev[2][:], P, Pcount)
+        self.B3(prev[3][:], P, Pcount)
+        self.B4(prev[4][:], P, Pcount)
+        self.B5(prev[5][:], P, Pcount)
+        self.B6(prev[6][:], P, Pcount)
+        self.B7(prev[7][:], P, Pcount)
+
+        return P, Pcount
+
+    def B0(self, pre, P, Pcount):
+        for i in range(4):
+            P[i] += pre[i]
+        Pcount[np.argmax(pre)] += 1
+
+    def B1(self, pre, P, Pcount):
+        tempP = np.zeros([4])
+        tempP[0] = pre[1]
+        tempP[1] = pre[2]
+        tempP[2] = pre[3]
+        tempP[3] = pre[0]
+        Pcount[np.argmax(tempP)] += 1
+        for i in range(4):
+            P[i] += tempP[i]
+
+    def B2(self,pre, P, Pcount):
+        tempP = np.zeros([4])
+        tempP[0] = pre[2]
+        tempP[1] = pre[3]
+        tempP[2] = pre[0]
+        tempP[3] = pre[1]
+        Pcount[np.argmax(tempP)] += 1
+        for i in range(4):
+            P[i] += tempP[i]
+
+    def B3(self, pre, P, Pcount):
+        tempP = np.zeros([4])
+        tempP[0] = pre[3]
+        tempP[1] = pre[0]
+        tempP[2] = pre[1]
+        tempP[3] = pre[2]
+        Pcount[np.argmax(tempP)] += 1
+        for i in range(4):
+            P[i] += tempP[i]
+
+    def B4(self, pre, P, Pcount):
+        tempP = np.zeros([4])
+        tempP[0] = pre[0]
+        tempP[1] = pre[3]
+        tempP[2] = pre[2]
+        tempP[3] = pre[1]
+        Pcount[np.argmax(tempP)] += 1
+        for i in range(4):
+            P[i] += tempP[i]
+
+    def B5(self, pre, P, Pcount):
+        tempP = np.zeros([4])
+        tempP[0] = pre[3]
+        tempP[1] = pre[2]
+        tempP[2] = pre[1]
+        tempP[3] = pre[0]
+        Pcount[np.argmax(tempP)] += 1
+        for i in range(4):
+            P[i] += tempP[i]
+
+    def B6(self, pre, P, Pcount):
+        tempP = np.zeros([4])
+        tempP[0] = pre[2]
+        tempP[1] = pre[1]
+        tempP[2] = pre[0]
+        tempP[3] = pre[3]
+        Pcount[np.argmax(tempP)] += 1
+        for i in range(4):
+            P[i] += tempP[i]
+
+    def B7(self, pre, P, Pcount):
+        tempP = np.zeros([4])
+        tempP[0] = pre[1]
+        tempP[1] = pre[0]
+        tempP[2] = pre[3]
+        tempP[3] = pre[2]
+        Pcount[np.argmax(tempP)] += 1
+        for i in range(4):
+            P[i] += tempP[i]
+    
     def __init__(self, game, display=None):
         self.game = game
         self.display = display
+        
+        tf.reset_default_graph()
+
         self.w_1 = 222
         self.w_2 = 222
         self.w_3 = 222
@@ -240,30 +356,31 @@ class DCNNAgent(Agent):
         self.w_5 = 222
 
         self.x_image = tf.placeholder(tf.float32, [None, 4, 4, 16])
-        self.w_conv1 = tf.Variable(tf.truncated_normal([2,2,16,self.w_1], stddev=0.1))
-        self.h_conv1 = tf.nn.conv2d(self.x_image, self.w_conv1, strides=[1,1,1,1], padding='SAME')
+        self.W_conv1 = tf.Variable(tf.truncated_normal([2,2,16,self.w_1], stddev=0.1))
+        self.h_conv1 = tf.nn.conv2d(self.x_image, self.W_conv1, strides=[1,1,1,1], padding='SAME')
         self.b_conv1 = tf.Variable(tf.constant(0.1, shape=[self.w_1]))
         self.relu1 = tf.nn.relu(self.h_conv1 + self.b_conv1)
 
-        self.w_conv2 = tf.Variable(tf.truncated_normal([2,2,self.w_1,self.w_2], stddev=0.1))
-        self.h_conv2 = tf.nn.conv2d(self.relu1, self.w_conv2, strides=[1,1,1,1], padding='SAME')
+        self.W_conv2 = tf.Variable(tf.truncated_normal([2,2,self.w_1,self.w_2], stddev=0.1))
+        self.h_conv2 = tf.nn.conv2d(self.relu1, self.W_conv2, strides=[1,1,1,1], padding='SAME')
         self.b_conv2 = tf.Variable(tf.constant(0.1, shape=[self.w_2]))
         self.relu2 = tf.nn.relu(self.h_conv2 + self.b_conv2)
 
-        self.w_conv3 = tf.Variable(tf.truncated_normal([2,2,self.w_2,self.w_3], stddev=0.1))
-        self.h_conv3 = tf.nn.conv2d(self.relu2, self.w_conv3, strides=[1,1,1,1], padding='SAME')
+        self.W_conv3 = tf.Variable(tf.truncated_normal([2,2,self.w_2,self.w_3], stddev=0.1))
+        self.h_conv3 = tf.nn.conv2d(self.relu2, self.W_conv3, strides=[1,1,1,1], padding='SAME')
         self.b_conv3 = tf.Variable(tf.constant(0.1, shape=[self.w_3]))
         self.relu3 = tf.nn.relu(self.h_conv3 + self.b_conv3)
 
-        self.w_conv4 = tf.Variable(tf.truncated_normal([2,2,self.w_3,self.w_4], stddev=0.1))
-        self.h_conv4 = tf.nn.conv2d(self.relu3, self.w_conv4, strides=[1,1,1,1], padding='SAME')
+        self.W_conv4 = tf.Variable(tf.truncated_normal([2,2,self.w_3,self.w_4], stddev=0.1))
+        self.h_conv4 = tf.nn.conv2d(self.relu3, self.W_conv4, strides=[1,1,1,1], padding='SAME')
         self.b_conv4 = tf.Variable(tf.constant(0.1, shape=[self.w_4]))
         self.relu4 = tf.nn.relu(self.h_conv4 + self.b_conv4)
 
-        self.w_conv5 = tf.Variable(tf.truncated_normal([2,2,self.w_4,self.w_5], stddev=0.1))
-        self.h_conv5 = tf.nn.conv2d(self.relu4, self.w_conv5, strides=[1,1,1,1], padding='SAME')
+        self.W_conv5 = tf.Variable(tf.truncated_normal([2,2,self.w_4,self.w_5], stddev=0.1))
+        self.h_conv5 = tf.nn.conv2d(self.relu4, self.W_conv5, strides=[1,1,1,1], padding='SAME')
         self.b_conv5 = tf.Variable(tf.constant(0.1, shape=[self.w_5]))
         self.relu5 = tf.nn.relu(self.h_conv5 + self.b_conv5)
+
         self.relu5_flat = tf.reshape(self.relu5, [-1, 4*4*self.w_5])
 
         self.w0 = tf.Variable(tf.zeros([4*4*self.w_5, 4]))
@@ -280,11 +397,35 @@ class DCNNAgent(Agent):
         self.sess = tf.InteractiveSession()
         self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver(max_to_keep=None)
-
-        files = '/home/myx/learning_affairs/EE228/project/2048-DCNN/c5_pdata/c5-' + str(600000000)
+        
+        files = '/home/myx/learning_affairs/EE228/project/2048-DCNN/c5_pdata/c5-600000000'
         self.saver.restore(self.sess, files)
-
+    
     def step(self):
-        direction = self.sess.run(self.p, feed_dict={self.x_image:change_values(self.game.board).reshape(1,4,4,16)})
-        direction = np.argmax(direction)
-        return (3-direction)
+        prev_board = self.game.board
+        image = [[prev_board[i][j] for j in range(4)] for i in range(4)]
+        P, Pcount = self.Board8(image)
+        counter = 0
+        while True:
+            counter += 1
+            select = -1
+            pmax = -1
+            for i in range(4):
+                if pmax < Pcount[i]:
+                    pmax = Pcount[i]
+                    select = i
+                elif pmax == Pcount[i] and P[select] < P[i]:
+                    pmax = Pcount[i]
+                    select = i
+            Pcount[select] = -1
+            new_game = Game(4, enable_rewrite_board=True)
+            new_game.board = prev_board
+            new_game.move(3-select)
+            new_board = new_game.board
+            isMoved = not (prev_board==new_board).all()
+            if isMoved: break
+            if counter == 4:
+                select = np.argmax(Pcount)
+                break
+        
+        return (3-select)
