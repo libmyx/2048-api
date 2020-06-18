@@ -398,7 +398,7 @@ class DCNNAgent(Agent):
         self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver(max_to_keep=None)
         
-        files = '/home/myx/learning_affairs/EE228/project/2048-DCNN/c5_pdata/c5-600000000'
+        files = '/home/myx/learning_affairs/EE228/project/2048-api/700000000'
         self.saver.restore(self.sess, files)
     
     def step(self):
